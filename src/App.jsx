@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect, useCallback } from "react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { useState, useRef, useEffect } from "react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, ReferenceLine } from "recharts";
 
 // ─── Palette & constants ──────────────────────────────────────────────────────
 const C = {
@@ -10,6 +10,8 @@ const C = {
 
 const CAT_COLORS = ["#d4a853","#5b8fa8","#a8705b","#5ba878","#8a5ba8","#5b7aa8","#a8a85b","#7a6a6a"];
 const CATEGORIES = ["Food & Groceries","Transport","Shopping","Bills & Utilities","Entertainment","Health & Wellness","Travel","Savings & Investments","Other"];
+const MONTHS     = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTHS_FULL = ["january","february","march","april","may","june","july","august","september","october","november","december"];
 
 const PROMPT = `Analyse this bank statement and return ONLY valid JSON — no markdown, no fences, no explanation.
 
@@ -37,30 +39,28 @@ Rules:
 - Use currency symbol found in statement; default £
 - All amounts as plain numbers, no currency symbols inside values`;
 
-// ─── Storage helpers (localStorage) ──────────────────────────────────────────
+// ─── Storage helpers ──────────────────────────────────────────────────────────
 function storageGet(key) {
-  try {
-    const val = localStorage.getItem(key);
-    return val ? JSON.parse(val) : null;
-  } catch {
-    return null;
-  }
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : null; }
+  catch { return null; }
 }
 function storageSet(key, val) {
-  try {
-    localStorage.setItem(key, JSON.stringify(val));
-  } catch(e) {
-    console.error(e);
-  }
+  try { localStorage.setItem(key, JSON.stringify(val)); }
+  catch(e) { console.error(e); }
 }
 
-// ─── File helpers ─────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 const readText = f => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsText(f); });
 const readB64  = f => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result.split(",")[1]); r.onerror = rej; r.readAsDataURL(f); });
-
-// ─── Format helpers ───────────────────────────────────────────────────────────
 const fmt  = (n, c = "£") => `${c}${Math.abs(n).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const fmtK = (n, c = "£") => Math.abs(n) >= 1000 ? `${c}${(Math.abs(n) / 1000).toFixed(1)}k` : fmt(n, c);
+const fmtK = (n, c = "£") => Math.abs(n) >= 1000 ? `${c}${(Math.abs(n)/1000).toFixed(1)}k` : fmt(n, c);
+
+function periodToMonthIdx(period) {
+  const lower = period.toLowerCase();
+  const full = MONTHS_FULL.findIndex(m => lower.includes(m));
+  if (full !== -1) return full;
+  return MONTHS.findIndex(m => lower.includes(m.toLowerCase()));
+}
 
 // ─── Shared primitives ────────────────────────────────────────────────────────
 function Card({ children, style = {}, onClick }) {
@@ -75,10 +75,10 @@ function SectionLabel({ children }) {
   return <div style={{ color: C.dim, fontFamily: "'DM Mono',monospace", fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 14 }}>{children}</div>;
 }
 
-function Bar2({ pct, color = C.gold, h = 4 }) {
+function ProgressBar({ pct, color = C.gold, h = 4 }) {
   return (
-    <div style={{ height: h, background: "rgba(255,255,255,0.06)", borderRadius: h / 2, overflow: "hidden" }}>
-      <div style={{ height: "100%", width: `${Math.min(100, Math.max(0, pct))}%`, background: color, borderRadius: h / 2, transition: "width 0.7s ease" }} />
+    <div style={{ height: h, background: "rgba(255,255,255,0.06)", borderRadius: h/2, overflow: "hidden" }}>
+      <div style={{ height: "100%", width: `${Math.min(100, Math.max(0, pct))}%`, background: color, borderRadius: h/2, transition: "width 0.7s ease" }} />
     </div>
   );
 }
@@ -115,9 +115,10 @@ function Nav({ view, setView }) {
   );
 }
 
-// ─── Spending pie chart ───────────────────────────────────────────────────────
+// ─── Spending pie ─────────────────────────────────────────────────────────────
 function SpendingPie({ categories, currency }) {
   const [active, setActive] = useState(null);
+  const cur = currency || "£";
   const data = categories.slice(0, 6);
   const total = data.reduce((a, c) => a + c.amount, 0);
 
@@ -126,7 +127,7 @@ function SpendingPie({ categories, currency }) {
     return (
       <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central">
         <tspan x={cx} dy="-0.4em" style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20, fill: C.gold }}>
-          {cat ? fmt(cat.amount, currency) : fmt(total, currency)}
+          {cat ? fmt(cat.amount, cur) : fmt(total, cur)}
         </tspan>
         <tspan x={cx} dy="1.6em" style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, fill: C.dim }}>
           {cat ? cat.name.split(" ")[0] : "total spent"}
@@ -139,18 +140,14 @@ function SpendingPie({ categories, currency }) {
     <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
       <ResponsiveContainer width={180} height={180}>
         <PieChart>
-          <Pie
-            data={data} cx="50%" cy="50%" innerRadius={58} outerRadius={82}
+          <Pie data={data} cx="50%" cy="50%" innerRadius={58} outerRadius={82}
             dataKey="amount" paddingAngle={2}
-            onMouseEnter={(_, i) => setActive(i)}
-            onMouseLeave={() => setActive(null)}
-            labelLine={false} label={<CustomLabel />}
-          >
+            onMouseEnter={(_, i) => setActive(i)} onMouseLeave={() => setActive(null)}
+            labelLine={false} label={<CustomLabel />}>
             {data.map((_, i) => (
               <Cell key={i} fill={CAT_COLORS[i % CAT_COLORS.length]}
                 opacity={active == null || active === i ? 1 : 0.35}
-                style={{ cursor: "pointer", transition: "opacity 0.2s" }}
-              />
+                style={{ cursor: "pointer", transition: "opacity 0.2s" }} />
             ))}
           </Pie>
         </PieChart>
@@ -170,6 +167,190 @@ function SpendingPie({ categories, currency }) {
   );
 }
 
+// ─── Savings projection ───────────────────────────────────────────────────────
+function SavingsProjection({ statements, currency }) {
+  const cur = currency || "£";
+  if (!statements.length) return null;
+
+  const avgSavings   = statements.reduce((a, s) => a + s.savings, 0) / statements.length;
+  const avgIncome    = statements.reduce((a, s) => a + s.income,  0) / statements.length;
+  const ytdSaved     = statements.reduce((a, s) => a + s.savings, 0);
+  const monthsWithData = statements.length;
+  const monthsLeft   = Math.max(0, 12 - monthsWithData);
+  const yearEndTotal = ytdSaved + avgSavings * monthsLeft;
+  const yearEndPositive = yearEndTotal >= 0;
+
+  // Map actual statements to month slots
+  const actualByIdx = {};
+  statements.forEach(s => {
+    const idx = periodToMonthIdx(s.period);
+    if (idx !== -1) actualByIdx[idx] = s.savings;
+  });
+
+  // Build 12-month chart data
+  const chartData = MONTHS.map((name, i) => {
+    if (actualByIdx[i] !== undefined) {
+      return { name, Actual: Math.max(0, actualByIdx[i]), Projected: null };
+    }
+    return { name, Actual: null, Projected: Math.max(0, avgSavings) };
+  });
+
+  const CustomTip = ({ active, payload, label }) => {
+    if (!active || !payload?.length) return null;
+    const item = payload.find(p => p.value != null);
+    if (!item) return null;
+    return (
+      <div style={{ background: "#1a1a28", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", fontFamily: "'DM Mono',monospace" }}>
+        <div style={{ color: C.gold, fontSize: 10, marginBottom: 4 }}>{label}</div>
+        <div style={{ color: item.fill, fontSize: 11 }}>{item.name}: {fmt(item.value, cur)}</div>
+        {item.name === "Projected" && <div style={{ color: C.dimmer, fontSize: 9, marginTop: 2 }}>estimated from avg</div>}
+      </div>
+    );
+  };
+
+  return (
+    <Card style={{ padding: "24px", marginBottom: 20 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+        <div>
+          <SectionLabel>Savings Projection · Full Year</SectionLabel>
+          <div style={{ color: C.dim, fontFamily: "'DM Mono',monospace", fontSize: 10 }}>
+            Avg {fmt(avgSavings, cur)}/mo · {fmt(avgIncome, cur)}/mo income
+          </div>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ color: C.dim, fontFamily: "'DM Mono',monospace", fontSize: 10, marginBottom: 4 }}>year-end forecast</div>
+          <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 32, fontWeight: 300, color: yearEndPositive ? C.green : C.red, lineHeight: 1 }}>
+            {yearEndPositive ? "" : "−"}{fmtK(Math.abs(yearEndTotal), cur)}
+          </div>
+          <div style={{ color: C.dimmer, fontFamily: "'DM Mono',monospace", fontSize: 10, marginTop: 4 }}>
+            {monthsLeft > 0 ? `${monthsLeft} months projected` : "full year tracked"}
+          </div>
+        </div>
+      </div>
+      <ResponsiveContainer width="100%" height={160}>
+        <BarChart data={chartData} barGap={2} barCategoryGap="28%">
+          <XAxis dataKey="name" tick={{ fontFamily: "'DM Mono',monospace", fontSize: 10, fill: C.dim }} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fontFamily: "'DM Mono',monospace", fontSize: 9, fill: C.dim }} axisLine={false} tickLine={false} tickFormatter={v => fmtK(v, cur)} width={50} />
+          <Tooltip content={<CustomTip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
+          <Bar dataKey="Actual"    fill={C.green}                  radius={[3,3,0,0]} />
+          <Bar dataKey="Projected" fill="rgba(91,168,120,0.22)"    radius={[3,3,0,0]} />
+        </BarChart>
+      </ResponsiveContainer>
+      <div style={{ display: "flex", gap: 20, marginTop: 10, justifyContent: "flex-end" }}>
+        {[["Actual saved", C.green],["Projected", "rgba(91,168,120,0.45)"]].map(([l, col]) => (
+          <div key={l} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ width: 8, height: 8, borderRadius: 2, background: col }} />
+            <span style={{ color: C.dim, fontFamily: "'DM Mono',monospace", fontSize: 10 }}>{l}</span>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+// ─── Month comparison ─────────────────────────────────────────────────────────
+function MonthComparison({ statements, currency }) {
+  const cur = currency || "£";
+  if (!statements.length) return null;
+
+  const sorted  = [...statements].sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+  const current  = sorted[0];
+  const previous = sorted[1] || null;
+
+  // All category names across both months
+  const catNames = [...new Set([
+    ...current.categories.map(c => c.name),
+    ...(previous?.categories.map(c => c.name) || []),
+  ])];
+
+  const rows = catNames.map(name => {
+    const currAmt = current.categories.find(c => c.name === name)?.amount || 0;
+    const prevAmt = previous?.categories.find(c => c.name === name)?.amount || 0;
+    const diff    = currAmt - prevAmt;
+    const pct     = prevAmt > 0 ? (diff / prevAmt) * 100 : null;
+
+    // Next month estimate: rolling average across all statements
+    const nextEst = statements.reduce((a, s) => {
+      return a + (s.categories.find(c => c.name === name)?.amount || 0);
+    }, 0) / statements.length;
+
+    return { name, currAmt, prevAmt, diff, pct, nextEst };
+  })
+    .filter(r => r.currAmt > 0 || r.prevAmt > 0)
+    .sort((a, b) => b.currAmt - a.currAmt);
+
+  const nextTotalEst = rows.reduce((a, r) => a + r.nextEst, 0);
+  const col = { fontFamily: "'DM Mono',monospace", fontSize: 11, textAlign: "right", paddingTop: 8 };
+
+  return (
+    <Card style={{ padding: "24px", marginBottom: 20 }}>
+      <SectionLabel>
+        Spending Breakdown · {current.period}{previous ? ` vs ${previous.period}` : ""}
+      </SectionLabel>
+
+      {/* Table header */}
+      <div style={{ display: "grid", gridTemplateColumns: `1fr 110px${previous ? " 110px" : ""} 110px`, gap: "0 4px", marginBottom: 8 }}>
+        <div style={{ color: C.dimmer, fontFamily: "'DM Mono',monospace", fontSize: 9, textTransform: "uppercase" }}>Category</div>
+        <div style={{ color: C.dimmer, fontFamily: "'DM Mono',monospace", fontSize: 9, textTransform: "uppercase", textAlign: "right" }}>
+          {current.period.slice(0, 3)}
+        </div>
+        {previous && (
+          <div style={{ color: C.dimmer, fontFamily: "'DM Mono',monospace", fontSize: 9, textTransform: "uppercase", textAlign: "right" }}>
+            {previous.period.slice(0, 3)}
+          </div>
+        )}
+        <div style={{ color: C.dimmer, fontFamily: "'DM Mono',monospace", fontSize: 9, textTransform: "uppercase", textAlign: "right" }}>Next (est.)</div>
+      </div>
+
+      {/* Divider */}
+      <div style={{ borderTop: `1px solid ${C.border}`, marginBottom: 4 }} />
+
+      {/* Rows */}
+      {rows.slice(0, 8).map((row, i) => (
+        <div key={i} style={{ display: "grid", gridTemplateColumns: `1fr 110px${previous ? " 110px" : ""} 110px`, gap: "0 4px", alignItems: "center" }}>
+          <div style={{ color: C.text, fontFamily: "'DM Mono',monospace", fontSize: 11, paddingTop: 8, paddingBottom: 2 }}>{row.name}</div>
+          <div style={{ ...col, color: C.gold }}>{fmt(row.currAmt, cur)}</div>
+          {previous && (
+            <div style={{ ...col, color: C.dim }}>
+              {row.prevAmt > 0 ? fmt(row.prevAmt, cur) : <span style={{ color: C.dimmer }}>—</span>}
+              {row.pct !== null && (
+                <span style={{ marginLeft: 5, fontSize: 9, color: row.diff > 0 ? C.red : C.green }}>
+                  {row.diff > 0 ? "▲" : "▼"}{Math.abs(row.pct).toFixed(0)}%
+                </span>
+              )}
+            </div>
+          )}
+          <div style={{ ...col, color: C.dimmer }}>{fmt(row.nextEst, cur)}</div>
+        </div>
+      ))}
+
+      {/* Total row */}
+      <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 10, paddingTop: 10,
+        display: "grid", gridTemplateColumns: `1fr 110px${previous ? " 110px" : ""} 110px`, gap: "0 4px" }}>
+        <div style={{ color: C.text, fontFamily: "'DM Mono',monospace", fontSize: 11, fontWeight: 500 }}>Total spent</div>
+        <div style={{ ...col, color: C.gold }}>{fmt(current.totalSpent, cur)}</div>
+        {previous && (
+          <div style={{ ...col, color: C.dim }}>
+            {fmt(previous.totalSpent, cur)}
+            {(() => { const d = current.totalSpent - previous.totalSpent; const p = (d/previous.totalSpent)*100; return (
+              <span style={{ marginLeft: 5, fontSize: 9, color: d > 0 ? C.red : C.green }}>
+                {d > 0 ? "▲" : "▼"}{Math.abs(p).toFixed(0)}%
+              </span>
+            ); })()}
+          </div>
+        )}
+        <div style={{ ...col, color: C.dimmer }}>{fmt(nextTotalEst, cur)}</div>
+      </div>
+
+      {!previous && (
+        <div style={{ color: C.dimmer, fontFamily: "'DM Mono',monospace", fontSize: 10, marginTop: 12, textAlign: "center" }}>
+          Upload another month to see the comparison
+        </div>
+      )}
+    </Card>
+  );
+}
+
 // ─── Overview ─────────────────────────────────────────────────────────────────
 function OverviewPage({ statements, goals, setView, onViewDetail }) {
   if (!statements.length) return (
@@ -183,8 +364,8 @@ function OverviewPage({ statements, goals, setView, onViewDetail }) {
     </div>
   );
 
-  const cur = statements[0].currency || "£";
-  const sorted = [...statements].sort((a, b) => a.savedAt.localeCompare(b.savedAt));
+  const cur        = statements[0].currency || "£";
+  const sorted     = [...statements].sort((a, b) => a.savedAt.localeCompare(b.savedAt));
   const ytdIncome  = statements.reduce((a, s) => a + s.income, 0);
   const ytdSpent   = statements.reduce((a, s) => a + s.totalSpent, 0);
   const ytdSaved   = statements.reduce((a, s) => a + s.savings, 0);
@@ -192,13 +373,11 @@ function OverviewPage({ statements, goals, setView, onViewDetail }) {
   const rateColor  = avgRate >= 20 ? C.green : avgRate >= 10 ? C.gold : C.red;
   const savedColor = ytdSaved >= 0 ? C.green : C.red;
 
-  // Aggregate categories across all statements
+  // Aggregate categories
   const allCats = {};
-  statements.forEach(s => {
-    s.categories.forEach(cat => {
-      allCats[cat.name] = (allCats[cat.name] || 0) + cat.amount;
-    });
-  });
+  statements.forEach(s => s.categories.forEach(cat => {
+    allCats[cat.name] = (allCats[cat.name] || 0) + cat.amount;
+  }));
   const aggregatedCats = Object.entries(allCats)
     .map(([name, amount]) => ({ name, amount }))
     .sort((a, b) => b.amount - a.amount);
@@ -220,9 +399,7 @@ function OverviewPage({ statements, goals, setView, onViewDetail }) {
       return { pct, label: `${avgRate.toFixed(1)}% avg vs ${g.target}% target`, color: pct >= 100 ? C.green : pct >= 60 ? C.gold : C.dim };
     }
     if (g.type === "category_limit") {
-      const avg = statements.length
-        ? statements.reduce((a, s) => { const cat = s.categories.find(c => c.name === g.category); return a + (cat?.amount || 0); }, 0) / statements.length
-        : 0;
+      const avg = statements.reduce((a, s) => { const cat = s.categories.find(c => c.name === g.category); return a + (cat?.amount || 0); }, 0) / statements.length;
       const pct = (avg / g.target) * 100;
       return { pct, label: `${fmt(avg, cur)} avg/mo vs ${fmt(g.target, cur)} limit`, color: pct > 100 ? C.red : pct > 80 ? C.gold : C.green, inverted: true };
     }
@@ -253,7 +430,7 @@ function OverviewPage({ statements, goals, setView, onViewDetail }) {
       {/* YTD cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 24 }}>
         {[
-          { label: "YTD Income",       value: fmtK(ytdIncome, cur), sub: "money received", acc: null },
+          { label: "YTD Income",       value: fmtK(ytdIncome, cur), sub: "money received",  acc: null },
           { label: "YTD Spent",        value: fmtK(ytdSpent, cur),  sub: "total outgoings", acc: null },
           { label: "YTD Saved",        value: fmtK(ytdSaved, cur),  sub: ytdSaved >= 0 ? "positive trend" : "overspent", acc: savedColor },
           { label: "Avg Savings Rate", value: `${avgRate.toFixed(1)}%`, sub: avgRate >= 20 ? "excellent" : avgRate >= 10 ? "on track" : "below target", acc: rateColor },
@@ -266,17 +443,14 @@ function OverviewPage({ statements, goals, setView, onViewDetail }) {
         ))}
       </div>
 
-      {/* Charts row */}
+      {/* Charts row: pie + monthly trend */}
       <div style={{ display: "grid", gridTemplateColumns: statements.length > 1 ? "1fr 1fr" : "1fr", gap: 16, marginBottom: 20 }}>
-        {/* Spending pie */}
         {aggregatedCats.length > 0 && (
           <Card style={{ padding: "24px" }}>
             <SectionLabel>Spending by Category</SectionLabel>
             <SpendingPie categories={aggregatedCats} currency={cur} />
           </Card>
         )}
-
-        {/* Trend chart */}
         {chartData.length > 1 && (
           <Card style={{ padding: "24px" }}>
             <SectionLabel>Monthly Trend</SectionLabel>
@@ -302,8 +476,14 @@ function OverviewPage({ statements, goals, setView, onViewDetail }) {
         )}
       </div>
 
+      {/* Savings projection */}
+      <SavingsProjection statements={statements} currency={cur} />
+
+      {/* Month comparison */}
+      <MonthComparison statements={statements} currency={cur} />
+
+      {/* Goals + history */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-        {/* Goals panel */}
         <Card style={{ padding: "24px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <SectionLabel>Goals</SectionLabel>
@@ -318,7 +498,6 @@ function OverviewPage({ statements, goals, setView, onViewDetail }) {
             <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
               {goals.map(g => {
                 const { pct, label, color, inverted } = getGoalProgress(g);
-                const displayPct = Math.min(100, Math.max(0, pct));
                 return (
                   <div key={g.id}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
@@ -327,7 +506,7 @@ function OverviewPage({ statements, goals, setView, onViewDetail }) {
                         {inverted ? `${Math.round(100 - pct)}% headroom` : `${Math.round(pct)}% done`}
                       </span>
                     </div>
-                    <Bar2 pct={displayPct} color={color} h={5} />
+                    <ProgressBar pct={Math.min(100, Math.max(0, pct))} color={color} h={5} />
                     <div style={{ color: C.dimmer, fontFamily: "'DM Mono',monospace", fontSize: 10, marginTop: 5 }}>{label}</div>
                   </div>
                 );
@@ -336,27 +515,25 @@ function OverviewPage({ statements, goals, setView, onViewDetail }) {
           )}
         </Card>
 
-        {/* History list */}
         <Card style={{ padding: "24px" }}>
           <SectionLabel>Statement History</SectionLabel>
-          <div>
-            {[...statements].sort((a, b) => b.savedAt.localeCompare(a.savedAt)).slice(0, 8).map((s, i, arr) => (
-              <div key={s.id} onClick={() => onViewDetail(s)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "11px 0", borderBottom: i < arr.length - 1 ? `1px solid ${C.border}` : "none", cursor: "pointer", transition: "opacity 0.15s" }}
-                onMouseEnter={e => e.currentTarget.style.opacity = "0.65"}
-                onMouseLeave={e => e.currentTarget.style.opacity = "1"}>
-                <div>
-                  <div style={{ color: C.text, fontFamily: "'DM Mono',monospace", fontSize: 11 }}>{s.period}</div>
-                  <div style={{ color: C.dimmer, fontFamily: "'DM Mono',monospace", fontSize: 10, marginTop: 2 }}>Rate: {s.savingsRate}% · {fmt(s.totalSpent, s.currency || "£")} spent</div>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ color: s.savings >= 0 ? C.green : C.red, fontFamily: "'DM Mono',monospace", fontSize: 11 }}>
-                    {s.savings >= 0 ? "+" : "−"}{fmt(Math.abs(s.savings), s.currency || "£")}
-                  </div>
-                  <div style={{ color: C.dimmer, fontFamily: "'DM Mono',monospace", fontSize: 10, marginTop: 2 }}>→</div>
-                </div>
+          {[...statements].sort((a, b) => b.savedAt.localeCompare(a.savedAt)).slice(0, 8).map((s, i, arr) => (
+            <div key={s.id} onClick={() => onViewDetail(s)}
+              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "11px 0", borderBottom: i < arr.length - 1 ? `1px solid ${C.border}` : "none", cursor: "pointer", transition: "opacity 0.15s" }}
+              onMouseEnter={e => e.currentTarget.style.opacity = "0.65"}
+              onMouseLeave={e => e.currentTarget.style.opacity = "1"}>
+              <div>
+                <div style={{ color: C.text, fontFamily: "'DM Mono',monospace", fontSize: 11 }}>{s.period}</div>
+                <div style={{ color: C.dimmer, fontFamily: "'DM Mono',monospace", fontSize: 10, marginTop: 2 }}>Rate: {s.savingsRate}% · {fmt(s.totalSpent, s.currency || "£")} spent</div>
               </div>
-            ))}
-          </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ color: s.savings >= 0 ? C.green : C.red, fontFamily: "'DM Mono',monospace", fontSize: 11 }}>
+                  {s.savings >= 0 ? "+" : "−"}{fmt(Math.abs(s.savings), s.currency || "£")}
+                </div>
+                <div style={{ color: C.dimmer, fontFamily: "'DM Mono',monospace", fontSize: 10, marginTop: 2 }}>→</div>
+              </div>
+            </div>
+          ))}
         </Card>
       </div>
     </div>
@@ -364,7 +541,8 @@ function OverviewPage({ statements, goals, setView, onViewDetail }) {
 }
 
 // ─── Upload page ───────────────────────────────────────────────────────────────
-function UploadPage({ onSave }) {
+// Auto-saves on analysis complete so navigating away never loses data
+function UploadPage({ onSave, onComplete }) {
   const [phase, setPhase]   = useState("upload");
   const [drag, setDrag]     = useState(false);
   const [fileName, setFile] = useState("");
@@ -376,7 +554,7 @@ function UploadPage({ onSave }) {
 
   const steps = ["Reading statement…","Categorising transactions…","Calculating savings rate…","Generating insights…"];
 
-  const processFile = useCallback(async file => {
+  const processFile = async file => {
     setFile(file.name);
     setPhase("analyzing");
     setError(null);
@@ -391,15 +569,15 @@ function UploadPage({ onSave }) {
         const text = await readText(file);
         messages = [{ role: "user", content: `Bank statement:\n\n${text}\n\n${PROMPT}` }];
       }
-      const res  = await fetch("/api/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages }),
-      });
-      const data = await res.json();
-      const raw  = data.content?.map(c => c.text || "").join("") || "";
+      const res    = await fetch("/api/analyze", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages }) });
+      const data   = await res.json();
+      const raw    = data.content?.map(c => c.text || "").join("") || "";
       const parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
-      setResult({ ...parsed, id: Date.now().toString(), savedAt: new Date().toISOString() });
+      const full   = { ...parsed, id: Date.now().toString(), savedAt: new Date().toISOString() };
+
+      // ── Auto-save immediately so navigating away never loses it ──
+      onSave(full);
+      setResult(full);
       setPhase("result");
     } catch {
       setError("Couldn't parse this file. Try exporting as CSV from your bank app.");
@@ -407,11 +585,12 @@ function UploadPage({ onSave }) {
     } finally {
       clearInterval(stepTimer.current);
     }
-  }, []);
+  };
 
   const handleDrop = e => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f) processFile(f); };
   const handleDrag = e => { e.preventDefault(); setDrag(e.type === "dragenter" || e.type === "dragover"); };
 
+  // ── Analyzing ─────────────────────────────────────────────────────────────
   if (phase === "analyzing") return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "80vh", gap: 28 }}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
@@ -423,12 +602,13 @@ function UploadPage({ onSave }) {
     </div>
   );
 
+  // ── Result ────────────────────────────────────────────────────────────────
   if (phase === "result" && result) {
     const cur = result.currency || "£";
     return (
       <div style={{ maxWidth: 680, margin: "0 auto", padding: "40px 24px 80px" }}>
         <div style={{ marginBottom: 28 }}>
-          <div style={{ color: C.dim, fontFamily: "'DM Mono',monospace", fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 6 }}>Analysis complete</div>
+          <div style={{ color: C.green, fontFamily: "'DM Mono',monospace", fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 6 }}>✓ Saved to tracker</div>
           <h2 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 36, fontWeight: 300, color: C.text, margin: 0, letterSpacing: "-0.02em" }}>{result.period}</h2>
         </div>
 
@@ -462,24 +642,23 @@ function UploadPage({ onSave }) {
         </Card>
 
         <div style={{ display: "flex", gap: 12 }}>
-          <Btn onClick={() => { setPhase("upload"); setResult(null); }} style={{ flex: 1, justifyContent: "center" }}>← Try different file</Btn>
-          <Btn variant="primary" onClick={() => onSave(result)} style={{ flex: 2, justifyContent: "center", fontSize: 12, padding: "12px 20px" }}>Save to tracker →</Btn>
+          <Btn onClick={() => { setPhase("upload"); setResult(null); }} style={{ flex: 1 }}>← Upload another</Btn>
+          <Btn variant="primary" onClick={onComplete} style={{ flex: 2, fontSize: 12, padding: "12px 20px" }}>View in dashboard →</Btn>
         </div>
       </div>
     );
   }
 
+  // ── Dropzone ──────────────────────────────────────────────────────────────
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "80vh", padding: 40 }}>
       <div style={{ textAlign: "center", marginBottom: 44 }}>
         <h2 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 42, fontWeight: 300, color: C.text, letterSpacing: "-0.02em", margin: "0 0 10px" }}>Upload a statement</h2>
         <p style={{ color: C.dim, fontFamily: "'DM Mono',monospace", fontSize: 12, margin: 0 }}>CSV, PDF or TXT export from your bank</p>
       </div>
-      <div
-        onDrop={handleDrop} onDragEnter={handleDrag} onDragOver={handleDrag} onDragLeave={handleDrag}
+      <div onDrop={handleDrop} onDragEnter={handleDrag} onDragOver={handleDrag} onDragLeave={handleDrag}
         onClick={() => inputRef.current.click()}
-        style={{ width: "100%", maxWidth: 500, border: `1px dashed ${drag ? C.gold : "rgba(255,255,255,0.15)"}`, borderRadius: 16, padding: "52px 40px", textAlign: "center", cursor: "pointer", transition: "all 0.25s", background: drag ? "rgba(212,168,83,0.04)" : "rgba(255,255,255,0.02)" }}
-      >
+        style={{ width: "100%", maxWidth: 500, border: `1px dashed ${drag ? C.gold : "rgba(255,255,255,0.15)"}`, borderRadius: 16, padding: "52px 40px", textAlign: "center", cursor: "pointer", transition: "all 0.25s", background: drag ? "rgba(212,168,83,0.04)" : "rgba(255,255,255,0.02)" }}>
         <div style={{ fontSize: 36, opacity: 0.5, marginBottom: 14 }}>↑</div>
         <div style={{ color: C.text, fontFamily: "'Cormorant Garamond',serif", fontSize: 22, marginBottom: 8 }}>Drop your statement here</div>
         <div style={{ color: C.dim, fontFamily: "'DM Mono',monospace", fontSize: 11 }}>or click to browse</div>
@@ -514,8 +693,7 @@ function GoalsPage({ goals, setGoals, statements }) {
     }
     if (g.type === "category_limit") {
       const avg = statements.length
-        ? statements.reduce((a, s) => { const c = s.categories.find(c => c.name === g.category); return a + (c?.amount || 0); }, 0) / statements.length
-        : 0;
+        ? statements.reduce((a, s) => { const c = s.categories.find(c => c.name === g.category); return a + (c?.amount || 0); }, 0) / statements.length : 0;
       const pct = (avg / g.target) * 100;
       return { pct, label: `${fmt(avg, cur)} avg/month vs ${fmt(g.target, cur)} limit`, color: pct > 100 ? C.red : pct > 80 ? C.gold : C.green, inverted: true };
     }
@@ -627,7 +805,7 @@ function GoalsPage({ goals, setGoals, statements }) {
                       onMouseLeave={e => e.target.style.color = C.dimmer}>✕</button>
                   </div>
                 </div>
-                <Bar2 pct={displayPct} color={color} h={6} />
+                <ProgressBar pct={displayPct} color={color} h={6} />
                 <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
                   <div style={{ color: C.dimmer, fontFamily: "'DM Mono',monospace", fontSize: 10 }}>{label}</div>
                   <div style={{ color, fontFamily: "'DM Mono',monospace", fontSize: 10 }}>{displayLabel}</div>
@@ -736,7 +914,7 @@ export default function App() {
       <DetailPage
         statement={selected}
         onBack={() => setSelected(null)}
-        onDelete={id => saveStatements(statements.filter(s => s.id !== id))}
+        onDelete={id => { saveStatements(statements.filter(s => s.id !== id)); setSelected(null); }}
       />
     </div>
   );
@@ -745,8 +923,13 @@ export default function App() {
     <div style={{ minHeight: "100vh", background: C.bg, color: C.text }}>
       <Nav view={view} setView={setView} />
       {view === "overview" && <OverviewPage statements={statements} goals={goals} setView={setView} onViewDetail={setSelected} />}
-      {view === "upload"   && <UploadPage   onSave={s => { saveStatements([...statements, s]); setView("overview"); }} />}
-      {view === "goals"    && <GoalsPage    goals={goals} setGoals={saveGoals} statements={statements} />}
+      {view === "upload"   && (
+        <UploadPage
+          onSave={s => saveStatements([...statements, s])}
+          onComplete={() => setView("overview")}
+        />
+      )}
+      {view === "goals" && <GoalsPage goals={goals} setGoals={saveGoals} statements={statements} />}
     </div>
   );
 }
