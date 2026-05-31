@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Find My Lease | Ask4Leasing</title>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+
+:root{
+  --navy:#0B1E3D;
+  --navy-mid:#152848;
+  --navy-light:#1E3560;
+  --accent:#00B4F5;
+  --accent-dark:#0090CC;
+  --indigo:#6366F1;
+  --white:#fff;
+  --slate-50:#F8FAFC;
+  --slate-100:#F1F5F9;
+  --slate-200:#E2E8F0;
+  --slate-300:#CBD5E1;
+  --slate-400:#94A3B8;
+  --slate-500:#64748B;
+  --slate-600:#475569;
+  --slate-700:#334155;
+  --slate-800:#1E293B;
+  --green:#10B981;
+  --green-dark:#059669;
+  --red:#EF4444;
+  --red-light:#FEF2F2;
+  --red-border:#FECACA;
+  --r-card:20px;
+  --r-btn:12px;
+  --shadow-card:0 24px 64px rgba(0,0,0,.35),0 4px 16px rgba(0,0,0,.2);
+  --transition:.28s cubic-bezier(.4,0,.2,1);
+}
+
+html{font-size:16px}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,Roboto,sans-serif;
+  background:linear-gradient(145deg,#071529 0%,#0B1E3D 40%,#0D2255 70%,#091833 100%);
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  padding:24px 16px 32px;
+  -webkit-font-smoothing:antialiased;
+}
+body::before{
+  content:'';
+  position:fixed;
+  inset:0;
+  background-image:
+    radial-gradient(circle at 20% 20%,rgba(0,180,245,.06) 0%,transparent 50%),
+    radial-gradient(circle at 80% 80%,rgba(99,102,241,.06) 0%,transparent 50%);
+  pointer-events:none;
+  z-index:0;
+}
+
+.quiz-wrap{width:100%;max-width:560px;position:relative;z-index:1}
+
+/* Logo */
+.logo-bar{text-align:center;margin-bottom:20px}
+.logo{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:20px;font-weight:800;color:#fff;letter-spacing:-.4px;text-decoration:none;
+}
+.logo-4{color:var(--accent)}
+.logo-leasing{color:rgba(255,255,255,.7)}
+.logo-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);display:inline-block}
+
+/* Progress */
+.progress-outer{margin-bottom:16px}
+.progress-meta{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:8px;color:rgba(255,255,255,.5);font-size:12px;font-weight:500;
+}
+.progress-track{height:3px;background:rgba(255,255,255,.12);border-radius:2px;overflow:hidden}
+.progress-fill{
+  height:100%;background:linear-gradient(90deg,var(--accent),var(--indigo));
+  border-radius:2px;transition:width .45s cubic-bezier(.4,0,.2,1);
+}
+
+/* Dots */
+.step-dots{display:flex;justify-content:center;align-items:center;gap:6px;margin-bottom:20px}
+.sdot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.18);transition:all .3s}
+.sdot.done{background:rgba(0,180,245,.4)}
+.sdot.now{background:var(--accent);transform:scale(1.5);box-shadow:0 0 8px rgba(0,180,245,.5)}
+
+/* Card */
+.card{background:#fff;border-radius:var(--r-card);box-shadow:var(--shadow-card);position:relative;overflow:hidden}
+.card-stripe{height:4px;background:linear-gradient(90deg,var(--accent) 0%,var(--indigo) 100%)}
+
+/* Welcome */
+#welcome-body{padding:36px 32px 32px}
+.welcome-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  background:linear-gradient(135deg,rgba(0,180,245,.1),rgba(99,102,241,.1));
+  border:1px solid rgba(0,180,245,.25);color:var(--accent-dark);
+  font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;
+  padding:5px 12px;border-radius:50px;margin-bottom:20px;
+}
+.welcome-title{
+  font-size:30px;font-weight:800;color:var(--slate-800);
+  line-height:1.2;margin-bottom:10px;letter-spacing:-.5px;
+}
+.welcome-title em{
+  font-style:normal;
+  background:linear-gradient(135deg,var(--accent-dark),var(--indigo));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.welcome-sub{font-size:16px;color:var(--slate-600);line-height:1.6;margin-bottom:28px}
+.welcome-pills{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:30px}
+.wpill{
+  display:inline-flex;align-items:center;gap:6px;
+  background:var(--slate-50);border:1px solid var(--slate-200);
+  color:var(--slate-600);font-size:13px;font-weight:500;padding:6px 12px;border-radius:50px;
+}
+.btn-start{
+  width:100%;padding:18px;
+  background:linear-gradient(135deg,var(--accent-dark),var(--indigo));
+  color:#fff;border:none;border-radius:var(--r-btn);
+  font-size:17px;font-weight:700;cursor:pointer;letter-spacing:-.2px;
+  transition:var(--transition);box-shadow:0 8px 24px rgba(0,144,204,.3);
+}
+.btn-start:hover{transform:translateY(-2px);box-shadow:0 12px 32px rgba(0,144,204,.4)}
+
+/* Quiz */
+#quiz-screen{display:none}
+#quiz-screen.active{display:block}
+.steps-wrap{padding:32px 32px 28px}
+.q-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.9px;color:var(--accent-dark);margin-bottom:6px}
+.q-title{font-size:22px;font-weight:800;color:var(--slate-800);line-height:1.3;letter-spacing:-.3px;margin-bottom:6px}
+.q-sub{font-size:14px;color:var(--slate-500);margin-bottom:22px;line-height:1.5}
+
+/* Options */
+.opts{display:flex;flex-direction:column;gap:9px}
+.opt{
+  display:flex;align-items:center;gap:13px;padding:14px 16px;
+  border:1.5px solid var(--slate-200);border-radius:12px;background:#fff;
+  cursor:pointer;transition:var(--transition);text-align:left;width:100%;
+  position:relative;-webkit-tap-highlight-color:transparent;
+}
+.opt:hover{border-color:var(--accent);background:#F0FBFF;transform:translateY(-1px)}
+.opt.sel{
+  border-color:var(--accent-dark);
+  background:linear-gradient(135deg,#E0F6FF,#F0EBFF);
+  box-shadow:0 0 0 1px var(--accent-dark);
+}
+.opt-ico{font-size:22px;min-width:30px;text-align:center;line-height:1}
+.opt-body{flex:1;min-width:0}
+.opt-name{font-size:14px;font-weight:600;color:var(--slate-800);line-height:1.3}
+.opt-hint{font-size:12px;color:var(--slate-500);margin-top:2px;line-height:1.3}
+.opt-chk{
+  width:20px;height:20px;border-radius:50%;border:2px solid var(--slate-300);
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;transition:var(--transition);font-size:10px;color:transparent;
+}
+.opt.sel .opt-chk{background:var(--accent-dark);border-color:var(--accent-dark);color:#fff}
+
+/* Nav */
+.nav{display:flex;gap:10px;margin-top:24px;padding-top:20px;border-top:1px solid var(--slate-100)}
+.btn-back-q{
+  padding:13px 20px;border:1.5px solid var(--slate-200);border-radius:var(--r-btn);
+  background:#fff;color:var(--slate-500);font-size:14px;font-weight:600;
+  cursor:pointer;transition:var(--transition);white-space:nowrap;font-family:inherit;
+}
+.btn-back-q:hover{border-color:var(--slate-400);color:var(--slate-700)}
+.btn-next-q{
+  flex:1;padding:13px 20px;border:none;border-radius:var(--r-btn);
+  background:linear-gradient(135deg,var(--accent-dark),var(--indigo));
+  color:#fff;font-size:15px;font-weight:700;cursor:pointer;
+  transition:var(--transition);font-family:inherit;opacity:.4;pointer-events:none;
+}
+.btn-next-q.on{opacity:1;pointer-events:auto}
+.btn-next-q.on:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(0,144,204,.3)}
+
+/* Step animation */
+.step{display:none}
+.step.in{display:block}
+.step.anim-fwd{animation:slideR .3s cubic-bezier(.4,0,.2,1) both}
+.step.anim-back{animation:slideL .3s cubic-bezier(.4,0,.2,1) both}
+@keyframes slideR{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+@keyframes slideL{from{opacity:0;transform:translateX(-30px)}to{opacity:1;transform:translateX(0)}}
+
+/* Results */
+#results-screen{display:none}
+#results-screen.active{display:block;animation:fadeUp .4s ease both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.results-card{background:#fff;border-radius:var(--r-card);box-shadow:var(--shadow-card);overflow:hidden}
+.results-body{padding:32px 32px 28px}
+.results-title{font-size:22px;font-weight:800;color:var(--slate-800);margin-bottom:4px;letter-spacing:-.3px}
+.results-sub{font-size:14px;color:var(--slate-500);margin-bottom:24px;line-height:1.5}
+
+/* Loading */
+.loading{text-align:center;padding:40px 20px;display:none}
+.loading.on{display:block}
+.spinner{
+  width:36px;height:36px;border:3px solid var(--slate-200);border-top-color:var(--accent-dark);
+  border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 14px;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-msg{font-size:14px;color:var(--slate-500)}
+.loading-submsg{font-size:12px;color:var(--slate-400);margin-top:4px}
+
+/* Error */
+.err-box{
+  margin-bottom:16px;padding:14px 16px;
+  background:var(--red-light);border:1px solid var(--red-border);
+  border-radius:10px;font-size:13px;color:var(--red);display:none;line-height:1.5;
+}
+.err-box.on{display:block}
+.btn-retry{
+  display:none;margin-top:10px;padding:10px 20px;
+  background:var(--navy);color:#fff;border:none;border-radius:8px;
+  font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:var(--transition);
+}
+.btn-retry:hover{background:var(--navy-light)}
+
+/* Recommendations */
+.recs{display:none;flex-direction:column;gap:12px;margin-bottom:28px}
+.recs.on{display:flex}
+.rec-card{
+  border:1px solid var(--slate-200);border-radius:14px;
+  padding:16px 16px 16px 20px;position:relative;overflow:hidden;
+  animation:recPop .4s ease both;
+}
+.rec-card:nth-child(1){animation-delay:.05s}
+.rec-card:nth-child(2){animation-delay:.12s}
+.rec-card:nth-child(3){animation-delay:.19s}
+@keyframes recPop{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.rec-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px}
+.rec-card:nth-child(1)::before{background:linear-gradient(180deg,var(--accent),var(--indigo))}
+.rec-card:nth-child(2)::before{background:linear-gradient(180deg,var(--indigo),#A78BFA)}
+.rec-card:nth-child(3)::before{background:linear-gradient(180deg,var(--green),var(--accent))}
+.rec-num{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--accent-dark);margin-bottom:3px}
+.rec-name{font-size:16px;font-weight:800;color:var(--slate-800);margin-bottom:6px;letter-spacing:-.2px}
+.rec-why{font-size:13px;color:var(--slate-600);margin-bottom:10px;line-height:1.5}
+.rec-price{
+  display:inline-flex;align-items:center;gap:5px;
+  background:linear-gradient(135deg,#E0F6FF,#EEF2FF);color:var(--accent-dark);
+  font-size:12px;font-weight:700;padding:5px 10px;border-radius:6px;
+  border:1px solid rgba(0,144,204,.15);
+}
+
+/* Lead form */
+.lead-form{display:none;border-top:1px solid var(--slate-200);padding-top:24px}
+.lead-form.on{display:block}
+.lead-title{font-size:17px;font-weight:800;color:var(--slate-800);margin-bottom:3px;letter-spacing:-.2px}
+.lead-sub{font-size:13px;color:var(--slate-500);margin-bottom:18px;line-height:1.5}
+.fg{margin-bottom:13px}
+.fl{display:block;font-size:12px;font-weight:600;color:var(--slate-600);margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px}
+.fi{
+  width:100%;padding:12px 14px;border:1.5px solid var(--slate-200);border-radius:10px;
+  font-size:15px;color:var(--slate-800);font-family:inherit;background:#fff;transition:border-color .2s;
+}
+.fi:focus{outline:none;border-color:var(--accent-dark)}
+.fi-ta{resize:none;height:88px;background:var(--slate-50);font-size:12px;color:var(--slate-500);line-height:1.6}
+.btn-submit{
+  width:100%;padding:16px;background:linear-gradient(135deg,var(--green-dark),#047857);
+  color:#fff;border:none;border-radius:var(--r-btn);font-size:16px;font-weight:700;
+  cursor:pointer;font-family:inherit;letter-spacing:-.2px;transition:var(--transition);
+  margin-top:4px;box-shadow:0 8px 24px rgba(5,150,105,.25);
+}
+.btn-submit:hover{transform:translateY(-2px);box-shadow:0 12px 30px rgba(5,150,105,.35)}
+
+/* Confirmation */
+.confirm{text-align:center;padding:28px 20px 8px;display:none}
+.confirm.on{display:block;animation:fadeUp .4s ease both}
+.confirm-ring{
+  width:60px;height:60px;border-radius:50%;
+  background:linear-gradient(135deg,#D1FAE5,#A7F3D0);
+  display:flex;align-items:center;justify-content:center;
+  margin:0 auto 16px;font-size:26px;
+}
+.confirm-title{font-size:20px;font-weight:800;color:var(--slate-800);margin-bottom:8px;letter-spacing:-.3px}
+.confirm-msg{font-size:14px;color:var(--slate-500);line-height:1.7;margin-bottom:22px}
+.confirm-cta{
+  display:inline-flex;align-items:center;gap:8px;background:var(--navy);color:#fff;
+  padding:14px 28px;border-radius:var(--r-btn);text-decoration:none;
+  font-size:16px;font-weight:700;letter-spacing:-.2px;transition:var(--transition);
+}
+.confirm-cta:hover{background:var(--navy-light);transform:translateY(-1px)}
+.restart-link{
+  display:block;text-align:center;margin-top:14px;font-size:12px;color:var(--slate-400);
+  cursor:pointer;text-decoration:underline;background:none;border:none;font-family:inherit;
+}
+.restart-link:hover{color:var(--slate-600)}
+
+/* Footer */
+.quiz-footer{text-align:center;margin-top:16px;font-size:11px;color:rgba(255,255,255,.3);line-height:1.8}
+.quiz-footer a{color:rgba(255,255,255,.4);text-decoration:none}
+.quiz-footer a:hover{color:rgba(255,255,255,.6)}
+
+/* Mobile */
+@media(max-width:480px){
+  body{padding:16px 12px 24px;justify-content:flex-start;padding-top:20px}
+  #welcome-body{padding:28px 20px 24px}
+  .welcome-title{font-size:24px}
+  .steps-wrap{padding:24px 18px 20px}
+  .q-title{font-size:19px}
+  .results-body{padding:24px 18px 20px}
+  .results-title{font-size:20px}
+  .rec-name{font-size:15px}
+  .btn-start,.btn-submit{padding:15px}
+  .nav{flex-direction:column}
+  .btn-back-q{order:2;text-align:center}
+  .btn-next-q{order:1}
+}
+</style>
+</head>
+<body>
+<div class="quiz-wrap">
+
+  <div class="logo-bar">
+    <a class="logo" href="https://ask4leasing.co.uk" target="_blank" rel="noopener">
+      <span>Ask</span><span class="logo-4">4</span><span class="logo-leasing">Leasing</span>
+      <span class="logo-dot"></span>
+    </a>
+  </div>
+
+  <!-- WELCOME -->
+  <div id="welcome" class="card">
+    <div class="card-stripe"></div>
+    <div id="welcome-body">
+      <div class="welcome-badge">✦ Free &middot; No obligation</div>
+      <h1 class="welcome-title">Find your<br><em>perfect lease</em></h1>
+      <p class="welcome-sub">Not sure where to start? Answer 5 quick questions and we'll match you with 3 cars that fit your budget, lifestyle, and timeline.</p>
+      <div class="welcome-pills">
+        <span class="wpill">🕐 Under 2 minutes</span>
+        <span class="wpill">🔒 No personal data needed</span>
+        <span class="wpill">🇬🇧 UK leasing specialists</span>
+      </div>
+      <button class="btn-start" onclick="startQuiz()">Start the quiz &rarr;</button>
+    </div>
+  </div>
+
+  <!-- QUIZ -->
+  <div id="quiz-screen">
+    <div class="progress-outer">
+      <div class="progress-meta">
+        <span id="plabel">Step 1 of 5</span>
+        <span id="ppct">20%</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="pbar" style="width:20%"></div>
+      </div>
+    </div>
+    <div class="step-dots">
+      <div class="sdot now" data-n="1"></div>
+      <div class="sdot" data-n="2"></div>
+      <div class="sdot" data-n="3"></div>
+      <div class="sdot" data-n="4"></div>
+      <div class="sdot" data-n="5"></div>
+    </div>
+    <div class="card">
+      <div class="card-stripe"></div>
+      <div class="steps-wrap">
+
+        <!-- Step 1 -->
+        <div class="step in anim-fwd" id="step-1">
+          <div class="q-label">Question 1 of 5</div>
+          <h2 class="q-title">Who is this lease for?</h2>
+          <p class="q-sub">This affects tax treatment, eligible deals, and VAT recovery.</p>
+          <div class="opts">
+            <button class="opt" data-q="1" data-v="Personal use" onclick="pick(this)">
+              <div class="opt-ico">👤</div>
+              <div class="opt-body"><div class="opt-name">Personal use</div><div class="opt-hint">For private individuals — prices shown inc. VAT</div></div>
+              <div class="opt-chk">✓</div>
+            </button>
+            <button class="opt" data-q="1" data-v="Business use" onclick="pick(this)">
+              <div class="opt-ico">💼</div>
+              <div class="opt-body"><div class="opt-name">Business use</div><div class="opt-hint">Sole traders, Ltd companies or VAT-registered businesses</div></div>
+              <div class="opt-chk">✓</div>
+            </button>
+          </div>
+          <div class="nav">
+            <button class="btn-next-q" id="nxt-1" onclick="goNext()">Continue &rarr;</button>
+          </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="step" id="step-2">
+          <div class="q-label">Question 2 of 5</div>
+          <h2 class="q-title">What's your monthly budget?</h2>
+          <p class="q-sub">Personal lease prices include VAT. Business lease prices exclude VAT.</p>
+          <div class="opts">
+            <button class="opt" data-q="2" data-v="Under £200/mo" onclick="pick(this)">
+              <div class="opt-ico">💸</div>
+              <div class="opt-body"><div class="opt-name">Under £200 / month</div><div class="opt-hint">Compact city cars — perfect for lower mileage</div></div>
+              <div class="opt-chk">✓</div>
+            </button>
+            <button class="opt" data-q="2" data-v="£200–£300/mo" onclick="pick(this)">
+              <div class="opt-ico">💰</div>
+              <div class="opt-body"><div class="opt-name">£200 – £300 / month</div><div class="opt-hint">The most popular range — great choice of models</div></div>
+              <div class="opt-chk">✓</div>
+            </button>
+            <button class="opt" data-q="2" data-v="£300–£400/mo" onclick="pick(this)">
+              <div class="opt-ico">💰</div>
+              <div class="opt-body"><div class="opt-name">£300 – £400 / month</div><div class="opt-hint">Mid-size SUVs, hybrids, and executive cars</div></div>
+              <div class="opt-chk">✓</div>
+            </button>
+            <button class="opt" data-q="2" data-v="£400–£500/mo" onclick="pick(this)">
+              <div class="opt-ico">💎</div>
+              <div class="opt-body"><div class="opt-name">£400 – £500 / month</div><div class="opt-hint">Premium EVs, luxury models, and large SUVs</div></div>
+              <div class="opt-chk">✓</div>
+            </button>
+            <button class="opt" data-q="2" data-v="Over £500/mo" onclick="pick(this)">
+              <div class="opt-ico">🏆</div>
+              <div class="opt-body"><div class="opt-name">Over £500 / month</div><div class="opt-hint">High-end, performance, or bespoke vehicles</div></div>
+              <div class="opt-chk">✓</div>
+            </button>
+          </div>
+          <div class="nav">
+            <button class="btn-back-q" onclick="goBack()">&larr; Back</button>
+            <button class="btn-next-q" id="nxt-2" onclick="goNext()">Continue &rarr;</button>
+          </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="step" id="step-3">
+          <div class="q-label">Question 3 of 5</div>
+          <h2 class="q-title">What kind of vehicle do you need?</h2>
+          <p class="q-sub">We'll narrow it down further from here — no need to pick a model yet.</p>
+          <div class="opts">
+            <button class="opt" data-q="3" data-v="Small city car" onclick="pick(this)">
+              <div class="opt-ico">🚗</div>
+              <div class="opt-body"><div class="opt-name">Small city car</div><div class="opt-hint">Easy to park and great for urban driving</div></div>
+              <div class="opt-chk">✓</div>
+            </button>
+            <button class="opt" data-q="3" data-v="Family hatchback or SUV" onclick="pick(this)">
+              <div class="opt-ico">🚙</div>
+              <div class="opt-body"><div class="opt-name">Family hatchback or SUV</div><div class="opt-hint">Practical, versatile, and good boot space</div></div>
+              <div class="opt-chk">✓</div>
+            </button>
+            <button class="opt" data-q="3" data-v="Executive or premium car" onclick="pick(this)">
+              <div class="opt-ico">✨</div>
+              <div class="opt-body"><div class="opt-name">Executive or premium car</div><div class="opt-hint">BMW, Mercedes, Audi — style and status</div></div>
+              <div class="opt-chk">✓</div>
+            </button>
+            <button class="opt" data-q="3" data-v="Van or commercial vehicle" onclick="pick(this)">
+              <div class="opt-ico">🚐</div>
+              <div class="opt-body"><div class="opt-name">Van or commercial vehicle</div><div class="opt-hint">For trade, delivery, or transporting gear</div></div>
+              <div class="opt-chk">✓</div>
+            </button>
+          </div>
+          <div class="nav">
+            <button class="btn-back-q" onclick="goBack()">&larr; Back</button>
+            <button class="btn-next-q" id="nxt-3" onclick="goNext()">Continue &rarr;</button>
+          </div>
+        </div>
+
+        <!-- Step 4 -->
+        <div class="step" id="step-4">
+          <div class="q-label">Question 4 of 5</div>
+          <h2 class="q-title">What's your fuel preference?</h2>
+          <p class="q-sub">There are more EV and hybrid options at every budget than ever before.</p>
+          <div class="opts">
+            <button class="opt" data-q="4" data-v="Petrol or diesel" onclick="pick(this)">
+              <div class="opt-ico">⛽</div>
+              <div class="opt-body"><div class="opt-name">Petrol or diesel</div><div class="opt-hint">Familiar, widely available, great for long distances</div></div>
+              <div class="opt-chk">✓</div>
+            </button>
+            <button class="opt" data-q="4" data-v="Hybrid" onclick="pick(this)">
+              <div class="opt-ico">🔋</div>
+              <div class="opt-body"><div class="opt-name">Hybrid</div><div class="opt-hint">Fuel-efficient with no range anxiety</div></div>
+              <div class="opt-chk">✓</div>
+            </button>
+            <button class="opt" data-q="4" data-v="Full electric" onclick="pick(this)">
+              <div class="opt-ico">⚡</div>
+              <div class="opt-body"><div class="opt-name">Full electric</div><div class="opt-hint">Zero emissions, low running costs, home charging</div></div>
+              <div class="opt-chk">✓</div>
+            </button>
+            <button class="opt" data-q="4" data-v="No preference" onclick="pick(this)">
+              <div class="opt-ico">🤷</div>
+              <div class="opt-body"><div class="opt-name">No preference</div><div class="opt-hint">Show me the best deal whatever the fuel type</div></div>
+              <div class="opt-chk">✓</div>
+            </button>
+          </div>
+          <div class="nav">
+            <button class="btn-back-q" onclick="goBack()">&larr; Back</button>
+            <button class="btn-next-q" id="nxt-4" onclick="goNext()">Continue &rarr;</button>
+          </div>
+        </div>
+
+        <!-- Step 5 -->
+        <div class="step" id="step-5">
+          <div class="q-label">Question 5 of 5 — last one!</div>
+          <h2 class="q-title">How soon do you need it?</h2>
+          <p class="q-sub">We'll prioritise in-stock vehicles if you need it quickly.</p>
+          <div class="opts">
+            <button class="opt" data-q="5" data-v="ASAP — within weeks" onclick="pick(this)">
+              <div class="opt-ico">🚀</div>
+              <div class="opt-body"><div class="opt-name">ASAP — within weeks</div><div class="opt-hint">We'll focus on vehicles available right now</div></div>
+              <div class="opt-chk">✓</div>
+            </button>
+            <button class="opt" data-q="5" data-v="1–3 months" onclick="pick(this)">
+              <div class="opt-ico">📅</div>
+              <div class="opt-body"><div class="opt-name">1–3 months</div><div class="opt-hint">A bit of time to plan and compare deals</div></div>
+              <div class="opt-chk">✓</div>
+            </button>
+            <button class="opt" data-q="5" data-v="Just browsing" onclick="pick(this)">
+              <div class="opt-ico">👀</div>
+              <div class="opt-body"><div class="opt-name">Just browsing</div><div class="opt-hint">No rush — I'm exploring my options</div></div>
+              <div class="opt-chk">✓</div>
+            </button>
+          </div>
+          <div class="nav">
+            <button class="btn-back-q" onclick="goBack()">&larr; Back</button>
+            <button class="btn-next-q" id="nxt-5" onclick="goNext()">See my matches &rarr;</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="results-screen">
+    <div class="results-card">
+      <div class="card-stripe"></div>
+      <div class="results-body">
+
+        <div class="results-title">Your personalised matches</div>
+        <p class="results-sub">Based on your answers, here are 3 cars matched to your budget and needs.</p>
+
+        <div class="err-box" id="errBox">
+          <span id="errMsg"></span>
+          <br>
+          <button class="btn-retry" id="retryBtn" onclick="generate()">Try again</button>
+        </div>
+
+        <div class="loading" id="loadingBox">
+          <div class="spinner"></div>
+          <div class="loading-msg">Finding your perfect matches&hellip;</div>
+          <div class="loading-submsg">Our AI is checking thousands of UK lease deals</div>
+        </div>
+
+        <div class="recs" id="recsBox"></div>
+
+        <div class="lead-form" id="leadForm">
+          <div class="lead-title">Get your personalised quotes</div>
+          <p class="lead-sub">Our team will find the best prices on these models — no obligation, no pressure.</p>
+          <div class="fg">
+            <label class="fl" for="fname">Your name</label>
+            <input type="text" class="fi" id="fname" placeholder="First name" autocomplete="given-name">
+          </div>
+          <div class="fg">
+            <label class="fl" for="fcontact">Phone or email</label>
+            <input type="text" class="fi" id="fcontact" placeholder="07700 000000 or name@email.com" autocomplete="tel">
+          </div>
+          <div class="fg">
+            <label class="fl" for="fsummary">Your quiz summary</label>
+            <textarea class="fi fi-ta" id="fsummary" readonly></textarea>
+          </div>
+          <button class="btn-submit" onclick="submitLead()">Get my personalised quotes</button>
+        </div>
+
+        <div class="confirm" id="confirmBox">
+          <div class="confirm-ring">✅</div>
+          <div class="confirm-title">Perfect — we're on it!</div>
+          <p class="confirm-msg">One of the Ask4Leasing team will be in touch shortly.<br>Or if you'd rather speak to us right now:</p>
+          <a href="tel:02920461437" class="confirm-cta">📞 02920 461437</a>
+        </div>
+
+        <button class="restart-link" onclick="restart()">Start quiz again</button>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="quiz-footer">
+    <a href="https://ask4leasing.co.uk" target="_blank" rel="noopener">ask4leasing.co.uk</a> &middot; UK car leasing specialists &middot; Authorised credit broker
+  </div>
+
+</div>
+<script>
+'use strict';
+const ans = {};
+let cur = 1;
+
+function startQuiz() {
+  document.getElementById('welcome').style.display = 'none';
+  const qs = document.getElementById('quiz-screen');
+  qs.classList.add('active');
+  qs.style.display = 'block';
+}
+
+function pick(btn) {
+  const q = btn.dataset.q;
+  document.querySelectorAll('.opt[data-q="' + q + '"]').forEach(b => b.classList.remove('sel'));
+  btn.classList.add('sel');
+  ans[q] = btn.dataset.v;
+  const nxt = document.getElementById('nxt-' + q);
+  if (nxt) nxt.classList.add('on');
+}
+
+function goNext() {
+  if (!ans[cur]) return;
+  const from = document.getElementById('step-' + cur);
+  if (cur >= 5) { from.classList.remove('in','anim-fwd','anim-back'); showResults(); return; }
+  from.classList.remove('in','anim-fwd','anim-back');
+  cur++;
+  const to = document.getElementById('step-' + cur);
+  to.classList.remove('anim-back');
+  to.classList.add('in','anim-fwd');
+  updateProgress();
+  restoreSel(cur);
+}
+
+function goBack() {
+  if (cur <= 1) return;
+  const from = document.getElementById('step-' + cur);
+  from.classList.remove('in','anim-fwd','anim-back');
+  cur--;
+  const to = document.getElementById('step-' + cur);
+  to.classList.remove('anim-fwd');
+  to.classList.add('in','anim-back');
+  updateProgress();
+  restoreSel(cur);
+}
+
+function restoreSel(step) {
+  const val = ans[step];
+  const nxt = document.getElementById('nxt-' + step);
+  if (!val) { if (nxt) nxt.classList.remove('on'); return; }
+  document.querySelectorAll('.opt[data-q="' + step + '"]').forEach(b => b.classList.toggle('sel', b.dataset.v === val));
+  if (nxt) nxt.classList.add('on');
+}
+
+function updateProgress() {
+  const pct = Math.round((cur / 5) * 100);
+  document.getElementById('pbar').style.width = pct + '%';
+  document.getElementById('plabel').textContent = 'Step ' + cur + ' of 5';
+  document.getElementById('ppct').textContent = pct + '%';
+  document.querySelectorAll('.sdot').forEach(d => {
+    const n = parseInt(d.dataset.n);
+    d.classList.toggle('now', n === cur);
+    d.classList.toggle('done', n < cur);
+    if (n > cur) d.classList.remove('now','done');
+  });
+}
+
+function showResults() {
+  document.getElementById('quiz-screen').style.display = 'none';
+  document.getElementById('results-screen').classList.add('active');
+  const summary = [
+    'Use:           ' + (ans[1] || '—'),
+    'Budget:        ' + (ans[2] || '—'),
+    'Vehicle type:  ' + (ans[3] || '—'),
+    'Fuel:          ' + (ans[4] || '—'),
+    'Timescale:     ' + (ans[5] || '—')
+  ].join('\n');
+  document.getElementById('fsummary').value = summary;
+  generate();
+}
+
+async function generate() {
+  document.getElementById('errBox').classList.remove('on');
+  document.getElementById('retryBtn').style.display = 'none';
+  document.getElementById('loadingBox').classList.add('on');
+
+  try {
+    const res = await fetch('/.netlify/functions/recommend', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answers: ans })
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error ' + res.status);
+
+    const match = (data.text || '').match(/\{[\s\S]*\}/);
+    if (!match) throw new Error('Unexpected response — please try again.');
+    const parsed = JSON.parse(match[0]);
+    if (!parsed.recommendations?.length) throw new Error('Could not load recommendations — please try again.');
+
+    document.getElementById('loadingBox').classList.remove('on');
+    renderRecs(parsed.recommendations.slice(0, 3));
+
+  } catch (err) {
+    document.getElementById('loadingBox').classList.remove('on');
+    document.getElementById('errMsg').textContent = err.message || 'Something went wrong. Please try again.';
+    document.getElementById('errBox').classList.add('on');
+    document.getElementById('retryBtn').style.display = 'inline-block';
+  }
+}
+
+function renderRecs(recs) {
+  const box = document.getElementById('recsBox');
+  const labels = ['Top pick','Runner-up','Also consider'];
+  box.innerHTML = recs.map((r, i) => `
+    <div class="rec-card">
+      <div class="rec-num">${labels[i] || 'Option '+(i+1)}</div>
+      <div class="rec-name">${esc(r.name)}</div>
+      <div class="rec-why">${esc(r.reason)}</div>
+      <div class="rec-price">💰 ${esc(r.price)} <small style="font-weight:400;opacity:.7">est.</small></div>
+    </div>`).join('');
+  box.classList.add('on');
+  document.getElementById('leadForm').classList.add('on');
+}
+
+function submitLead() {
+  const name = document.getElementById('fname').value.trim();
+  const contact = document.getElementById('fcontact').value.trim();
+  if (!name) { document.getElementById('fname').focus(); return; }
+  if (!contact) { document.getElementById('fcontact').focus(); return; }
+  document.getElementById('leadForm').style.display = 'none';
+  document.getElementById('confirmBox').classList.add('on');
+  document.getElementById('confirmBox').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function restart() {
+  Object.keys(ans).forEach(k => delete ans[k]);
+  cur = 1;
+  document.querySelectorAll('.opt').forEach(b => b.classList.remove('sel'));
+  document.querySelectorAll('.btn-next-q').forEach(b => b.classList.remove('on'));
+  document.querySelectorAll('.step').forEach(b => b.classList.remove('in','anim-fwd','anim-back'));
+  document.getElementById('step-1').classList.add('in','anim-fwd');
+  updateProgress();
+  document.getElementById('results-screen').classList.remove('active');
+  document.getElementById('recsBox').classList.remove('on');
+  document.getElementById('recsBox').innerHTML = '';
+  document.getElementById('leadForm').classList.remove('on');
+  document.getElementById('leadForm').style.display = '';
+  document.getElementById('confirmBox').classList.remove('on');
+  document.getElementById('errBox').classList.remove('on');
+  document.getElementById('quiz-screen').style.display = 'block';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.appendChild(document.createTextNode(String(s)));
+  return d.innerHTML;
+}
+</script>
+</body>
+</html>
